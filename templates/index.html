@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema Acusatorio - Gestión y Calendario de Audiencias</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-icon">⚖️</div>
+        <div class="brand-text">
+          <h1>SISTEMA ACUSATORIO</h1>
+          <span>Oficina Judicial • Calendario y Agenda Oficial de Audiencias</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span class="live-clock" id="liveClock">--:--:--</span>
+        <button class="btn btn-outline" id="btnOpenConfig">
+          ⚙️ Configurar Envíos
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-container">
+
+    <!-- TARJETAS DE RESUMEN / MÉTRICAS -->
+    <section class="metrics-grid">
+      <div class="metric-card card-blue">
+        <div class="metric-icon">📅</div>
+        <div class="metric-data">
+          <span class="metric-label">Audiencias Pendientes</span>
+          <h2 class="metric-value" id="statPendientes">--</h2>
+          <small class="metric-hint">Desde hoy en adelante</small>
+        </div>
+      </div>
+      <div class="metric-card card-amber">
+        <div class="metric-icon">🔔</div>
+        <div class="metric-data">
+          <span class="metric-label">Audiencias Hoy</span>
+          <h2 class="metric-value" id="statHoy">--</h2>
+          <small class="metric-hint" id="statHoyFecha">--/--/----</small>
+        </div>
+      </div>
+      <div class="metric-card card-purple">
+        <div class="metric-icon">📹</div>
+        <div class="metric-data">
+          <span class="metric-label">Audiencias Virtuales</span>
+          <h2 class="metric-value" id="statVirtuales">--</h2>
+          <small class="metric-hint">Con enlace de conexión Zoom</small>
+        </div>
+      </div>
+      <div class="metric-card card-green">
+        <div class="metric-icon">🏛️</div>
+        <div class="metric-data">
+          <span class="metric-label">Audiencias Presenciales</span>
+          <h2 class="metric-value" id="statPresenciales">--</h2>
+          <small class="metric-hint">En sala de audiencias</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- ZONA DE CARGA DE ARCHIVOS PDF -->
+    <section class="upload-section">
+      <div class="upload-card" id="dropZone">
+        <input type="file" id="pdfFileInput" accept=".pdf" style="display:none;" multiple>
+        <div class="upload-content">
+          <div class="upload-icon-wrapper">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+          </div>
+          <h3>Cargar Cédula / Notificación de Audiencia (PDF)</h3>
+          <p>Arrastrá y soltá el archivo PDF aquí o hacé clic para seleccionarlo de tu equipo.</p>
+          <div class="upload-features">
+            <span>✨ Extracción automática de datos</span>
+            <span>📹 Detección de link Zoom para entrar directo</span>
+            <span>📂 Almacenamiento para descarga</span>
+          </div>
+          <button class="btn btn-primary" id="btnSelectFile">
+            📁 Seleccionar archivo PDF
+          </button>
+        </div>
+        <!-- Loader durante procesamiento -->
+        <div class="upload-loader" id="uploadLoader" style="display:none;">
+          <div class="spinner"></div>
+          <p id="uploadLoaderText">Analizando y extrayendo datos del documento PDF...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- BARRA DE ACCIONES Y FILTROS -->
+    <section class="toolbar-section">
+      <div class="toolbar-left">
+        <!-- Pestañas de estado -->
+        <div class="tab-group" id="tabGroup">
+          <button class="tab-btn active" data-filtro="pendientes">⏳ Pendientes</button>
+          <button class="tab-btn" data-filtro="hoy">🔔 Para Hoy</button>
+          <button class="tab-btn" data-filtro="todas">📋 Todas</button>
+          <button class="tab-btn" data-filtro="pasadas">📁 Pasadas</button>
+        </div>
+
+        <!-- Filtros desplegables -->
+        <div class="filter-controls">
+          <select id="filterSede" class="form-select">
+            <option value="todas">🏢 Todas las Sedes</option>
+            <option value="Corrientes">Corrientes</option>
+            <option value="Paso de los Libres">Paso de los Libres</option>
+            <option value="Goya">Goya</option>
+          </select>
+
+          <select id="filterModalidad" class="form-select">
+            <option value="todas">🌐 Toda Modalidad</option>
+            <option value="VIRTUAL">📹 Virtual (Zoom)</option>
+            <option value="PRESENCIAL">🏛️ Presencial</option>
+          </select>
+        </div>
+
+        <!-- Buscador -->
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Buscar por carpeta, delito, imputado..." autocomplete="off">
+          <button id="btnClearSearch" class="btn-clear" style="display:none;">✕</button>
+        </div>
+      </div>
+
+      <div class="toolbar-right">
+        <button class="btn btn-success" id="btnDescargarPdf" title="Descargar agenda en PDF lista para imprimir">
+          🖨️ Descargar PDF (Imprimir)
+        </button>
+        <button class="btn btn-excel" id="btnExportarExcel" title="Exportar planilla Excel">
+          📊 Excel
+        </button>
+        <button class="btn btn-indigo" id="btnEnviarEmailAhora" title="Enviar PDF por email de inmediato">
+          📧 Enviar Email
+        </button>
+        <button class="btn btn-secondary" id="btnNuevaAudienciaManual" title="Cargar audiencia a mano">
+          ➕ Nueva Audiencia
+        </button>
+      </div>
+    </section>
+
+    <!-- TABLA DE AUDIENCIAS -->
+    <section class="table-card">
+      <div class="table-header-info">
+        <span id="tableResultsCount">Cargando audiencias...</span>
+        <div class="table-legend">
+          <span class="legend-item"><span class="dot dot-hoy"></span> Hoy</span>
+          <span class="legend-item"><span class="dot dot-pendiente"></span> Pendiente</span>
+          <span class="legend-item"><span class="dot dot-pasada"></span> Pasada</span>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table-hearings" id="hearingsTable">
+          <thead>
+            <tr>
+              <th style="width: 50px;">Orden</th>
+              <th style="width: 85px;">Día</th>
+              <th style="width: 105px;">Fecha</th>
+              <th style="width: 75px;">Hora</th>
+              <th style="width: 115px;">Carpeta</th>
+              <th style="min-width: 200px;">Audiencia Requerida</th>
+              <th style="min-width: 190px;">Modalidad y Conexión</th>
+              <th style="min-width: 170px;">Tipo de Delito</th>
+              <th style="min-width: 130px;">Detenidos</th>
+              <th style="width: 100px;">Sede</th>
+              <th style="width: 130px; text-align:center;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Las filas se cargan dinámicamente con JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Estado vacío -->
+      <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="empty-icon">📂</div>
+        <h3>No se encontraron audiencias</h3>
+        <p>No hay registros que coincidan con los filtros seleccionados o podés cargar un archivo PDF para agregar una.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: PREVISUALIZAR / EDITAR DATOS EXTRAÍDOS DEL PDF O NUEVA AUDIENCIA -->
+  <div class="modal" id="modalHearing" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modalTitle">Detalle de la Audiencia</h3>
+          <button class="btn-close" id="btnCloseModal">✕</button>
+        </div>
+        <form id="formHearing">
+          <input type="hidden" id="editId">
+          <input type="hidden" id="editArchivoPdf">
+          <input type="hidden" id="editModalidadTipo">
+
+          <div class="modal-body">
+            <div class="alert-info" id="modalAlertInfo" style="display:none;">
+              ✨ Datos extraídos automáticamente del documento. Por favor, verificá que la información sea correcta antes de confirmar.
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label>N° Orden</label>
+                <input type="number" id="inputOrden" class="form-control" required>
+              </div>
+
+              <div class="form-group">
+                <label>Carpeta Judicial</label>
+                <input type="text" id="inputCarpeta" class="form-control" placeholder="Ej: 7456/2026/4" required>
+              </div>
+
+              <div class="form-group">
+                <label>Fecha (DD/MM/AAAA)</label>
+                <input type="text" id="inputFecha" class="form-control" placeholder="04/11/2026" required>
+              </div>
+
+              <div class="form-group">
+                <label>Día de la semana</label>
+                <input type="text" id="inputDia" class="form-control" placeholder="miércoles" required>
+              </div>
+
+              <div class="form-group">
+                <label>Hora (HH:MM)</label>
+                <input type="text" id="inputHora" class="form-control" placeholder="08:00" required>
+              </div>
+
+              <div class="form-group">
+                <label>Sede</label>
+                <select id="inputSede" class="form-control">
+                  <option value="Corrientes">Corrientes</option>
+                  <option value="Paso de los Libres">Paso de los Libres</option>
+                  <option value="Goya">Goya</option>
+                </select>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Audiencia Requerida</label>
+                <textarea id="inputAudiencia" class="form-control" rows="2" placeholder="Descripción de la audiencia solicitada" required></textarea>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Modalidad</label>
+                <input type="text" id="inputModalidad" class="form-control" placeholder="VIRTUAL / PRESENCIAL">
+              </div>
+
+              <!-- SECCIÓN ZOOM -->
+              <div class="form-group full-width zoom-box">
+                <div class="zoom-box-header">
+                  <span>📹 Enlace y Datos de Zoom (Audiencia Virtual)</span>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group full-width">
+                    <label>Enlace directo a Zoom (URL)</label>
+                    <input type="url" id="inputZoomLink" class="form-control" placeholder="https://pjn-gov-ar.zoom.us/j/...">
+                  </div>
+                  <div class="form-group">
+                    <label>ID de Reunión</label>
+                    <input type="text" id="inputZoomId" class="form-control" placeholder="811 7842 6766">
+                  </div>
+                  <div class="form-group">
+                    <label>Código de Acceso / Clave</label>
+                    <input type="text" id="inputZoomPass" class="form-control" placeholder="110870">
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Tipo de Delito</label>
+                <textarea id="inputDelito" class="form-control" rows="2" placeholder="Ej: Art. 5 inc. C LEY 23.737"></textarea>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Personas Detenidas / Lugar de Alojamiento</label>
+                <textarea id="inputDetenidos" class="form-control" rows="2" placeholder="NO HAY PERSONAS DETENIDAS o Nombre (Lugar)"></textarea>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Correos Electrónicos para Notificaciones</label>
+                <input type="text" id="inputEmail" class="form-control" placeholder="jfcorrientes2@pjn.gov.ar; jfcorrientes2.secpenal@pjn.gov.ar">
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" id="btnCancelModal">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btnSaveHearing">💾 Guardar Audiencia</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIGURACIÓN DE ENVÍO AUTOMÁTICO DE EMAIL -->
+  <div class="modal" id="modalConfig" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>⚙️ Configuración de Envío Automático por Email</h3>
+          <button class="btn-close" id="btnCloseConfigModal">✕</button>
+        </div>
+        <form id="formConfig">
+          <div class="modal-body">
+            <div class="schedule-badge">
+              <span class="badge-icon">⏰</span>
+              <div>
+                <strong>Envío automático programado:</strong>
+                <p>De lunes a viernes cerca de las 7:00 AM se genera el archivo PDF con las audiencias pendientes y se envía por correo a los destinatarios configurados.</p>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Hora de Envío (Lunes a Viernes)</label>
+                <input type="time" id="cfgHoraEnvio" class="form-control" value="07:00" required>
+              </div>
+
+              <div class="form-group">
+                <label>Estado del Envío Automático</label>
+                <select id="cfgActivo" class="form-control">
+                  <option value="1">✅ Activado (Lunes a Viernes)</option>
+                  <option value="0">⏸️ Desactivado</option>
+                </select>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Asunto del Correo Electrónico</label>
+                <input type="text" id="cfgAsunto" class="form-control" placeholder="⚖️ Audiencias pendientes - Sistema Acusatorio" required>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Destinatarios (separados por coma o punto y coma)</label>
+                <textarea id="cfgDestinatarios" class="form-control" rows="2" placeholder="jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar, tuemail@gmail.com" required></textarea>
+                <small class="hint">A estos correos se enviará la agenda con el PDF adjunto listo para imprimir.</small>
+              </div>
+
+              <div class="form-group full-width">
+                <h4 style="margin: 15px 0 5px 0; color: #1a3d7c; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
+                  Servidor de Correo Saliente (SMTP)
+                </h4>
+              </div>
+
+              <div class="form-group">
+                <label>Servidor SMTP</label>
+                <input type="text" id="cfgSmtpServer" class="form-control" placeholder="smtp.gmail.com" required>
+              </div>
+
+              <div class="form-group">
+                <label>Puerto SMTP</label>
+                <input type="number" id="cfgSmtpPort" class="form-control" placeholder="587" required>
+              </div>
+
+              <div class="form-group">
+                <label>Usuario / Correo Remitente</label>
+                <input type="email" id="cfgSmtpUser" class="form-control" placeholder="tu-cuenta@gmail.com">
+              </div>
+
+              <div class="form-group">
+                <label>Contraseña / Contraseña de Aplicación</label>
+                <input type="password" id="cfgSmtpPass" class="form-control" placeholder="Contraseña de app de Gmail / servidor">
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" id="btnCancelConfigModal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">💾 Guardar Configuración</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST / NOTIFICACIONES FLOTANTES -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
