@@ -38,9 +38,10 @@ const btnOpenConfig = document.getElementById('btnOpenConfig');
 const modalHearing = document.getElementById('modalHearing');
 const formHearing = document.getElementById('formHearing');
 const modalTitle = document.getElementById('modalTitle');
-const modalAlertInfo = document.getElementById('modalAlertInfo');
+const modalSubtitle = document.getElementById('modalSubtitle');
 const btnCloseModal = document.getElementById('btnCloseModal');
 const btnCancelModal = document.getElementById('btnCancelModal');
+const btnCancelModalTop = document.getElementById('btnCancelModalTop');
 
 // Modal Config
 const modalConfig = document.getElementById('modalConfig');
@@ -172,6 +173,9 @@ function setupEventListeners() {
   // Modal Audiencia
   btnCloseModal.addEventListener('click', closeHearingModal);
   btnCancelModal.addEventListener('click', closeHearingModal);
+  if (btnCancelModalTop) {
+    btnCancelModalTop.addEventListener('click', closeHearingModal);
+  }
   formHearing.addEventListener('submit', handleSaveHearing);
 
   // Modal Config
@@ -363,13 +367,13 @@ function openHearingModal(data = null, isFromPdf = false) {
 
   if (isFromPdf) {
     modalTitle.textContent = '✨ Confirmar Datos Extraídos del PDF';
-    modalAlertInfo.style.display = 'block';
+    if (modalSubtitle) modalSubtitle.textContent = 'Verificá la información y guardá con el botón verde';
   } else if (data && data.id) {
     modalTitle.textContent = '✏️ Editar Audiencia';
-    modalAlertInfo.style.display = 'none';
+    if (modalSubtitle) modalSubtitle.textContent = 'Modificá los campos necesarios y guardá los cambios';
   } else {
     modalTitle.textContent = '➕ Nueva Audiencia (Carga Manual)';
-    modalAlertInfo.style.display = 'none';
+    if (modalSubtitle) modalSubtitle.textContent = 'Completá los datos de la audiencia a registrar';
   }
 
   if (data) {
