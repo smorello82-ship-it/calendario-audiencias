@@ -49,6 +49,7 @@ const modalConfig = document.getElementById('modalConfig');
 const formConfig = document.getElementById('formConfig');
 const btnCloseConfigModal = document.getElementById('btnCloseConfigModal');
 const btnCancelConfigModal = document.getElementById('btnCancelConfigModal');
+const btnCancelConfigModalTop = document.getElementById('btnCancelConfigModalTop');
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
@@ -193,6 +194,9 @@ function setupEventListeners() {
   btnOpenConfig.addEventListener('click', openConfigModal);
   btnCloseConfigModal.addEventListener('click', closeConfigModal);
   btnCancelConfigModal.addEventListener('click', closeConfigModal);
+  if (btnCancelConfigModalTop) {
+    btnCancelConfigModalTop.addEventListener('click', closeConfigModal);
+  }
   formConfig.addEventListener('submit', handleSaveConfig);
 }
 

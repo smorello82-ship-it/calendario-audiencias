@@ -318,112 +318,133 @@
     </div>
   </div>
 
-  <!-- MODAL: CONFIGURACIÓN DE ENVÍO AUTOMÁTICO DE EMAIL -->
+  <!-- MODAL: CONFIGURACIÓN DE ENVÍO AUTOMÁTICO DE EMAIL Y CORREO PJN -->
   <div class="modal" id="modalConfig" style="display:none;">
     <div class="modal-backdrop"></div>
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-wide">
       <div class="modal-content">
-        <div class="modal-header">
-          <h3>⚙️ Configuración de Envío Automático por Email</h3>
-          <button class="btn-close" id="btnCloseConfigModal">✕</button>
-        </div>
         <form id="formConfig">
-          <div class="modal-body">
-            <div class="schedule-badge">
-              <span class="badge-icon">⏰</span>
-              <div>
-                <strong>Envío automático programado:</strong>
-                <p>De lunes a viernes cerca de las 7:00 AM se genera el archivo PDF con las audiencias pendientes y se envía por correo a los destinatarios configurados.</p>
-              </div>
+          <div class="modal-header">
+            <div class="modal-header-title">
+              <h3>⚙️ Configuración del Sistema (Correo PJN y Envíos)</h3>
+              <span style="font-size: 11px; opacity: 0.85;">Recepción automática de audiencias y envío matutino del PDF</span>
             </div>
-
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Hora de Envío (Lunes a Viernes)</label>
-                <input type="time" id="cfgHoraEnvio" class="form-control" value="07:00" required>
-              </div>
-
-              <div class="form-group">
-                <label>Estado del Envío Automático</label>
-                <select id="cfgActivo" class="form-control">
-                  <option value="1">✅ Activado (Lunes a Viernes)</option>
-                  <option value="0">⏸️ Desactivado</option>
-                </select>
-              </div>
-
-              <div class="form-group full-width">
-                <label>Asunto del Correo Electrónico</label>
-                <input type="text" id="cfgAsunto" class="form-control" placeholder="⚖️ Audiencias pendientes - Sistema Acusatorio" required>
-              </div>
-
-              <div class="form-group full-width">
-                <label>Destinatarios (separados por coma o punto y coma)</label>
-                <textarea id="cfgDestinatarios" class="form-control" rows="2" placeholder="jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar, tuemail@gmail.com" required></textarea>
-                <small class="hint">A estos correos se enviará la agenda con el PDF adjunto listo para imprimir.</small>
-              </div>
-
-              <div class="form-group full-width">
-                <h4 style="margin: 18px 0 4px 0; color: #1a3d7c; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; font-size:13px; font-weight:700;">
-                  📬 Conexión con Correo Entrante (webmail.pjn.gov.ar - Zimbra)
-                </h4>
-                <small class="hint">El sistema ingresa a tu bandeja de entrada, descarga los PDFs de las audiencias recibidas y los agenda en el calendario automáticamente.</small>
-              </div>
-
-              <div class="form-group">
-                <label>Usuario Webmail PJN</label>
-                <input type="text" id="cfgPjnUser" class="form-control" placeholder="smorello o smorello@pjn.gov.ar">
-              </div>
-
-              <div class="form-group">
-                <label>Contraseña Webmail PJN</label>
-                <input type="password" id="cfgPjnPass" class="form-control" placeholder="Contraseña de webmail.pjn.gov.ar">
-              </div>
-
-              <div class="form-group">
-                <label>Búsqueda Automática Periódica</label>
-                <select id="cfgPjnAutoSync" class="form-control">
-                  <option value="1">✅ Activada (cada 30 min de Lun a Vie)</option>
-                  <option value="0">⏸️ Solo manual</option>
-                </select>
-              </div>
-
-              <div class="form-group" style="display:flex; align-items:flex-end;">
-                <button type="button" class="btn btn-indigo" id="btnTestPjnConnection" style="width:100%; height:34px; font-size:12px;">
-                  🔄 Probar y Sincronizar Ahora
-                </button>
-              </div>
-
-              <div class="form-group full-width">
-                <h4 style="margin: 18px 0 4px 0; color: #1a3d7c; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; font-size:13px; font-weight:700;">
-                  📤 Servidor de Correo Saliente (SMTP - Para enviar la agenda a las 7 AM)
-                </h4>
-              </div>
-
-              <div class="form-group">
-                <label>Servidor SMTP</label>
-                <input type="text" id="cfgSmtpServer" class="form-control" placeholder="smtp.gmail.com" required>
-              </div>
-
-              <div class="form-group">
-                <label>Puerto SMTP</label>
-                <input type="number" id="cfgSmtpPort" class="form-control" placeholder="587" required>
-              </div>
-
-              <div class="form-group">
-                <label>Usuario / Correo Remitente</label>
-                <input type="email" id="cfgSmtpUser" class="form-control" placeholder="tu-cuenta@gmail.com">
-              </div>
-
-              <div class="form-group">
-                <label>Contraseña / Contraseña de Aplicación</label>
-                <input type="password" id="cfgSmtpPass" class="form-control" placeholder="Contraseña de app de Gmail / servidor">
-              </div>
+            <div class="modal-header-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCancelConfigModalTop">Cancelar</button>
+              <button type="submit" class="btn btn-success btn-sm" style="font-weight:700;">💾 Guardar Cambios</button>
+              <button type="button" class="btn-close" id="btnCloseConfigModal" title="Cerrar ventana">✕</button>
             </div>
           </div>
 
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline" id="btnCancelConfigModal">Cancelar</button>
-            <button type="submit" class="btn btn-primary">💾 Guardar Configuración</button>
+          <div class="modal-body compact-body">
+            <div class="modal-config-grid">
+              
+              <!-- COLUMNA 1: CORREO ENTRANTE PJN (ZIMBRA) -->
+              <div class="config-card-box card-box-blue">
+                <div class="config-card-header">
+                  <span class="config-card-icon">📬</span>
+                  <div>
+                    <h4>Recepción Automática (webmail.pjn.gov.ar)</h4>
+                    <p>Detecta y agenda automáticamente los PDFs que te llegan por correo.</p>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Usuario del Webmail PJN</label>
+                  <input type="text" id="cfgPjnUser" class="form-control" placeholder="smorello o smorello@pjn.gov.ar">
+                </div>
+
+                <div class="form-group">
+                  <label>Contraseña del Webmail PJN</label>
+                  <input type="password" id="cfgPjnPass" class="form-control" placeholder="Contraseña de webmail.pjn.gov.ar">
+                </div>
+
+                <div class="form-group">
+                  <label>Escaneo Automático de Nuevas Cédulas</label>
+                  <select id="cfgPjnAutoSync" class="form-control">
+                    <option value="1">✅ Activado (cada 30 min de Lun a Vie)</option>
+                    <option value="0">⏸️ Solo manual</option>
+                  </select>
+                </div>
+
+                <div style="margin-top: 6px;">
+                  <button type="button" class="btn btn-indigo" id="btnTestPjnConnection" style="width: 100%; font-weight:600; padding:8px 12px; font-size:12px;">
+                    🔄 Probar Conexión y Sincronizar Ahora
+                  </button>
+                </div>
+              </div>
+
+              <!-- COLUMNA 2: ENVÍO MATUTINO DE LA AGENDA (7:00 AM) -->
+              <div class="config-card-box card-box-green">
+                <div class="config-card-header">
+                  <span class="config-card-icon">⏰</span>
+                  <div>
+                    <h4>Envío Automático de Agenda (Lunes a Viernes)</h4>
+                    <p>Envía por email el PDF con las audiencias pendientes a las 7 AM.</p>
+                  </div>
+                </div>
+
+                <div class="form-row-compact">
+                  <div class="form-group" style="flex: 1;">
+                    <label>Hora de Envío</label>
+                    <input type="time" id="cfgHoraEnvio" class="form-control" value="07:00" required>
+                  </div>
+                  <div class="form-group" style="flex: 1.2;">
+                    <label>Estado del Envío</label>
+                    <select id="cfgActivo" class="form-control">
+                      <option value="1">✅ Activado (Lun a Vie)</option>
+                      <option value="0">⏸️ Desactivado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Asunto del Correo</label>
+                  <input type="text" id="cfgAsunto" class="form-control" placeholder="⚖️ Audiencias pendientes - Sistema Acusatorio" required>
+                </div>
+
+                <div class="form-group">
+                  <label>Destinatarios (separados por coma)</label>
+                  <textarea id="cfgDestinatarios" class="form-control" rows="2" placeholder="jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar" required></textarea>
+                </div>
+
+                <!-- DETALLES SMTP PLEGADOS/COMPACTOS -->
+                <div class="smtp-compact-box">
+                  <span style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
+                    Configuración Servidor Saliente (SMTP)
+                  </span>
+                  <div class="form-row-compact">
+                    <div class="form-group" style="flex: 2;">
+                      <label>Servidor</label>
+                      <input type="text" id="cfgSmtpServer" class="form-control" placeholder="smtp.gmail.com">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                      <label>Puerto</label>
+                      <input type="number" id="cfgSmtpPort" class="form-control" placeholder="587">
+                    </div>
+                  </div>
+                  <div class="form-row-compact" style="margin-top:6px;">
+                    <div class="form-group" style="flex: 1.2;">
+                      <label>Usuario / Remitente</label>
+                      <input type="email" id="cfgSmtpUser" class="form-control" placeholder="cuenta@gmail.com">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                      <label>Contraseña</label>
+                      <input type="password" id="cfgSmtpPass" class="form-control" placeholder="Contraseña app">
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <div class="modal-footer modal-footer-sticky">
+            <button type="button" class="btn btn-secondary" id="btnCancelConfigModal">Cancelar</button>
+            <button type="submit" class="btn btn-success" style="font-weight:700; font-size:14px; padding: 8px 20px;">
+              💾 Guardar Configuración
+            </button>
           </div>
         </form>
       </div>

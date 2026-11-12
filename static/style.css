@@ -781,6 +781,75 @@ textarea.form-control {
 .zoom-grid-compact .col-zoom-id { flex: 1 1 130px; }
 .zoom-grid-compact .col-zoom-pass { flex: 0 0 90px; }
 
+/* MODAL CONFIG GRID EN 2 COLUMNAS PARALELAS */
+.modal-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.config-card-box {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-box-blue {
+  border-top: 4px solid var(--primary);
+  background: #f8fafc;
+}
+
+.card-box-green {
+  border-top: 4px solid #10b981;
+  background: #f8fafc;
+}
+
+.config-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.config-card-icon {
+  font-size: 22px;
+  background: #ffffff;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.config-card-header h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.2;
+}
+
+.config-card-header p {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.smtp-compact-box {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 2px;
+}
+
+@media (max-width: 850px) {
+  .modal-config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .modal-footer-sticky {
   padding: 10px 18px;
   background: #f8fafc;
