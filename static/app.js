@@ -31,6 +31,7 @@ const btnClearSearch = document.getElementById('btnClearSearch');
 const btnDescargarPdf = document.getElementById('btnDescargarPdf');
 const btnExportarExcel = document.getElementById('btnExportarExcel');
 const btnEnviarEmailAhora = document.getElementById('btnEnviarEmailAhora');
+const btnSyncPjn = document.getElementById('btnSyncPjn');
 const btnNuevaAudienciaManual = document.getElementById('btnNuevaAudienciaManual');
 const btnOpenConfig = document.getElementById('btnOpenConfig');
 
@@ -164,6 +165,16 @@ function setupEventListeners() {
 
   // Botón Enviar Email
   btnEnviarEmailAhora.addEventListener('click', handleEnviarEmailManual);
+
+  // Botón Sincronizar Webmail PJN
+  if (btnSyncPjn) {
+    btnSyncPjn.addEventListener('click', handleSyncPjn);
+  }
+
+  const btnTestPjn = document.getElementById('btnTestPjnConnection');
+  if (btnTestPjn) {
+    btnTestPjn.addEventListener('click', handleSyncPjnFromModal);
+  }
 
   // Botón Nueva Audiencia Manual
   btnNuevaAudienciaManual.addEventListener('click', () => {
@@ -504,6 +515,19 @@ async function openConfigModal() {
       if (c.has_smtp_pass) {
         document.getElementById('cfgSmtpPass').placeholder = '•••••••• (Contraseña guardada - Dejar vacío para no cambiar)';
       }
+
+      // Campos PJN
+      const elPjnUser = document.getElementById('cfgPjnUser');
+      const elPjnPass = document.getElementById('cfgPjnPass');
+      const elPjnAuto = document.getElementById('cfgPjnAutoSync');
+      if (elPjnUser) elPjnUser.value = c.pjn_user || '';
+      if (elPjnPass) {
+        elPjnPass.value = '';
+        if (c.has_pjn_pass) {
+          elPjnPass.placeholder = '•••••••• (Contraseña guardada - Dejar vacío para no cambiar)';
+        }
+      }
+      if (elPjnAuto) elPjnAuto.value = c.pjn_auto_sync !== undefined ? c.pjn_auto_sync : 1;
     }
   } catch (err) {
     showToast('Error al cargar la configuración', 'error');
@@ -525,7 +549,10 @@ async function handleSaveConfig(e) {
     smtp_server: document.getElementById('cfgSmtpServer').value,
     smtp_port: parseInt(document.getElementById('cfgSmtpPort').value),
     smtp_user: document.getElementById('cfgSmtpUser').value,
-    smtp_pass: document.getElementById('cfgSmtpPass').value
+    smtp_pass: document.getElementById('cfgSmtpPass').value,
+    pjn_user: document.getElementById('cfgPjnUser') ? document.getElementById('cfgPjnUser').value : '',
+    pjn_pass: document.getElementById('cfgPjnPass') ? document.getElementById('cfgPjnPass').value : '',
+    pjn_auto_sync: document.getElementById('cfgPjnAutoSync') ? parseInt(document.getElementById('cfgPjnAutoSync').value) : 1
   };
 
   try {
@@ -543,6 +570,69 @@ async function handleSaveConfig(e) {
     }
   } catch (err) {
     showToast('Error al guardar configuración', 'error');
+  }
+}
+
+// ========================================================
+// SINCRONIZACIÓN CON WEBMAIL PJN
+// ========================================================
+async function handleSyncPjn() {
+  showToast('📬 Conectando con webmail.pjn.gov.ar y buscando audiencias...', 'info');
+
+  try {
+    const res = await fetch('/api/pjn-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (data.nuevas_audiencias > 0) {
+        showToast(`🎉 ¡Se encontraron y agendaron ${data.nuevas_audiencias} nueva(s) audiencia(s)!`, 'success');
+        loadAudiencias();
+      } else {
+        showToast(`Bandeja al día: no hay nuevas audiencias pendientes (${data.total_mensajes_revisados || 0} correos revisados)`, 'info');
+      }
+    } else {
+      showToast(`⚠️ ${data.error}`, 'error');
+      // Si no están configuradas las credenciales, abrir el modal
+      if (data.error && data.error.includes('credenciales')) {
+        setTimeout(openConfigModal, 1200);
+      }
+    }
+  } catch (err) {
+    showToast('Error de conexión al sincronizar con el Webmail PJN', 'error');
+  }
+}
+
+async function handleSyncPjnFromModal() {
+  const pjnUser = document.getElementById('cfgPjnUser').value;
+  const pjnPass = document.getElementById('cfgPjnPass').value;
+
+  if (!pjnUser) {
+    showToast('Por favor completá tu usuario del Webmail PJN', 'error');
+    return;
+  }
+
+  showToast('Probando conexión y buscando correos...', 'info');
+
+  try {
+    const res = await fetch('/api/pjn-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pjn_user: pjnUser, pjn_pass: pjnPass })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast(`✅ Conexión exitosa. Audiencias nuevas: ${data.nuevas_audiencias}`, 'success');
+      loadAudiencias();
+    } else {
+      showToast(`❌ Error: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showToast('Error de conexión con el servidor', 'error');
   }
 }
 

@@ -167,8 +167,27 @@ def scheduled_job():
     res = enviar_email_audiencias()
     print("Scheduler resultado:", res)
 
+def scheduled_pjn_sync():
+    """Tarea periódica para sincronizar automáticamente el Webmail del PJN"""
+    cfg = database.get_config()
+    if not cfg.get("pjn_auto_sync", 1):
+        return
+    if not cfg.get("pjn_user") or not cfg.get("pjn_pass"):
+        return
+        
+    print(f"Scheduler [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]: Sincronizando Webmail PJN...")
+    try:
+        import pjn_mail_reader
+        res = pjn_mail_reader.sync_pjn_mail()
+        if res.get("success"):
+            database.update_last_pjn_sync()
+            if res.get("nuevas_audiencias", 0) > 0:
+                print(f"Scheduler: ¡Se encontraron y agendaron {res['nuevas_audiencias']} nueva(s) audiencia(s) desde el correo!")
+    except Exception as e:
+        print(f"Scheduler error en sincronización PJN: {e}")
+
 def start_scheduler():
-    """Inicia el programador para lunes a viernes a las 7:00 AM"""
+    """Inicia el programador para lunes a viernes a las 7:00 AM y la sincronización de correo"""
     cfg = database.get_config()
     hora_str = cfg.get("hora_envio") or "07:00"
     try:
@@ -176,7 +195,7 @@ def start_scheduler():
     except Exception:
         hora, minuto = 7, 0
 
-    # Días de lunes a viernes: mon-fri
+    # 1. Envío diario a las 7:00 AM
     scheduler.add_job(
         scheduled_job,
         'cron',
@@ -186,6 +205,18 @@ def start_scheduler():
         id='envio_audiencias_diario',
         replace_existing=True
     )
+
+    # 2. Sincronización recurrente con Webmail PJN cada 30 minutos (de lunes a viernes de 7 a 20 hs)
+    scheduler.add_job(
+        scheduled_pjn_sync,
+        'cron',
+        day_of_week='mon-fri',
+        hour='7-20',
+        minute='*/30',
+        id='sincronizacion_pjn_recurrente',
+        replace_existing=True
+    )
+
     if not scheduler.running:
         scheduler.start()
-        print(f"Scheduler iniciado: Envíos programados de lunes a viernes a las {hora:02d}:{minuto:02d} hs.")
+        print(f"Scheduler iniciado: Envíos diarios a las {hora:02d}:{minuto:02d} hs y escaneo de correos cada 30 min.")

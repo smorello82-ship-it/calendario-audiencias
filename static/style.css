@@ -388,6 +388,14 @@ body {
   background-color: #084c21;
 }
 
+.btn-warning {
+  background-color: #d97706;
+  color: #ffffff;
+}
+.btn-warning:hover {
+  background-color: #b45309;
+}
+
 .btn-excel {
   background-color: #107c41;
   color: #ffffff;

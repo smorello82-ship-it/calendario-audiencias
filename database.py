@@ -49,16 +49,34 @@ def init_db():
         destinatarios TEXT,
         hora_envio TEXT,
         activo INTEGER DEFAULT 1,
-        asunto TEXT
+        asunto TEXT,
+        pjn_user TEXT,
+        pjn_pass TEXT,
+        pjn_auto_sync INTEGER DEFAULT 1,
+        pjn_last_sync TEXT
     )
     """)
     
+    # Migrar columnas nuevas si la tabla fue creada previamente
+    for col_name, col_type in [
+        ("pjn_user", "TEXT"),
+        ("pjn_pass", "TEXT"),
+        ("pjn_auto_sync", "INTEGER DEFAULT 1"),
+        ("pjn_last_sync", "TEXT")
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE configuracion ADD COLUMN {col_name} {col_type}")
+        except Exception:
+            pass # Ya existe
+            
     # Crear configuración por defecto si no existe
     cursor.execute("SELECT COUNT(*) FROM configuracion")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""
-        INSERT INTO configuracion (id, smtp_server, smtp_port, smtp_user, smtp_pass, remitente, destinatarios, hora_envio, activo, asunto)
-        VALUES (1, 'smtp.gmail.com', 587, '', '', '', 'jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar', '07:00', 1, '⚖️ Audiencias pendientes - Sistema Acusatorio')
+        INSERT INTO configuracion (
+            id, smtp_server, smtp_port, smtp_user, smtp_pass, remitente,
+            destinatarios, hora_envio, activo, asunto, pjn_user, pjn_pass, pjn_auto_sync, pjn_last_sync
+        ) VALUES (1, 'smtp.gmail.com', 587, '', '', '', 'jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar', '07:00', 1, '⚖️ Audiencias pendientes - Sistema Acusatorio', '', '', 1, '')
         """)
     
     conn.commit()
@@ -342,7 +360,8 @@ def save_config(cfg):
     cursor.execute("""
     UPDATE configuracion SET
         smtp_server = ?, smtp_port = ?, smtp_user = ?, smtp_pass = ?,
-        remitente = ?, destinatarios = ?, hora_envio = ?, activo = ?, asunto = ?
+        remitente = ?, destinatarios = ?, hora_envio = ?, activo = ?, asunto = ?,
+        pjn_user = ?, pjn_pass = ?, pjn_auto_sync = ?
     WHERE id = 1
     """, (
         cfg.get("smtp_server", "smtp.gmail.com").strip(),
@@ -353,8 +372,19 @@ def save_config(cfg):
         cfg.get("destinatarios", "").strip(),
         cfg.get("hora_envio", "07:00").strip(),
         int(cfg.get("activo", 1)),
-        cfg.get("asunto", "⚖️ Audiencias pendientes - Sistema Acusatorio").strip()
+        cfg.get("asunto", "⚖️ Audiencias pendientes - Sistema Acusatorio").strip(),
+        cfg.get("pjn_user", "").strip(),
+        cfg.get("pjn_pass", "").strip(),
+        int(cfg.get("pjn_auto_sync", 1))
     ))
+    conn.commit()
+    conn.close()
+
+def update_last_pjn_sync():
+    conn = get_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    cursor.execute("UPDATE configuracion SET pjn_last_sync = ? WHERE id = 1", (now_str,))
     conn.commit()
     conn.close()
 

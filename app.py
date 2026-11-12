@@ -8,6 +8,7 @@ import database
 import extractor
 import pdf_generator
 import email_service
+import pjn_mail_reader
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -151,28 +152,52 @@ def export_excel():
 @app.route('/api/config', methods=['GET'])
 def get_config_endpoint():
     cfg = database.get_config()
-    # Ocultar contraseña completa por seguridad
     safe_cfg = dict(cfg)
-    if safe_cfg.get("smtp_pass"):
-        safe_cfg["has_smtp_pass"] = True
-        safe_cfg["smtp_pass_masked"] = "••••••••"
-    else:
-        safe_cfg["has_smtp_pass"] = False
-        safe_cfg["smtp_pass_masked"] = ""
+    
+    # Ocultar contraseñas completas por seguridad
+    safe_cfg["has_smtp_pass"] = bool(safe_cfg.get("smtp_pass"))
+    safe_cfg["smtp_pass_masked"] = "••••••••" if safe_cfg["has_smtp_pass"] else ""
+    
+    safe_cfg["has_pjn_pass"] = bool(safe_cfg.get("pjn_pass"))
+    safe_cfg["pjn_pass_masked"] = "••••••••" if safe_cfg["has_pjn_pass"] else ""
+    
     return jsonify({"success": True, "config": safe_cfg})
 
 @app.route('/api/config', methods=['POST'])
 def save_config_endpoint():
     data = request.json or {}
     old_cfg = database.get_config()
+    
     # Si la contraseña enviada está vacía pero ya había una, conservar la anterior
     if not data.get("smtp_pass") and old_cfg.get("smtp_pass"):
         data["smtp_pass"] = old_cfg.get("smtp_pass")
+    if not data.get("pjn_pass") and old_cfg.get("pjn_pass"):
+        data["pjn_pass"] = old_cfg.get("pjn_pass")
         
     database.save_config(data)
     # Actualizar scheduler
     email_service.start_scheduler()
     return jsonify({"success": True, "message": "Configuración guardada correctamente"})
+
+@app.route('/api/pjn-sync', methods=['POST'])
+def trigger_pjn_sync():
+    """Endpoint para sincronizar correos del Webmail PJN en vivo"""
+    data = request.json or {}
+    # Permitir pasar credenciales temporales o usar las guardadas en la BD
+    custom_user = data.get("pjn_user")
+    custom_pass = data.get("pjn_pass")
+    
+    if custom_user and custom_pass:
+        client = pjn_mail_reader.PJNWebmailClient(custom_user, custom_pass)
+        res = client.search_and_sync_hearings()
+        if res.get("success"):
+            database.update_last_pjn_sync()
+        return jsonify(res)
+    else:
+        res = pjn_mail_reader.sync_pjn_mail()
+        if res.get("success"):
+            database.update_last_pjn_sync()
+        return jsonify(res)
 
 @app.route('/api/enviar-email', methods=['POST'])
 def trigger_email():

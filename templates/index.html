@@ -136,6 +136,9 @@
       </div>
 
       <div class="toolbar-right">
+        <button class="btn btn-warning" id="btnSyncPjn" title="Buscar correos con audiencias en webmail.pjn.gov.ar">
+          📬 Buscar en Correo PJN
+        </button>
         <button class="btn btn-success" id="btnDescargarPdf" title="Descargar agenda en PDF lista para imprimir">
           🖨️ Descargar PDF (Imprimir)
         </button>
@@ -360,8 +363,39 @@
               </div>
 
               <div class="form-group full-width">
-                <h4 style="margin: 15px 0 5px 0; color: #1a3d7c; border-bottom: 1px solid #ddd; padding-bottom: 5px;">
-                  Servidor de Correo Saliente (SMTP)
+                <h4 style="margin: 18px 0 4px 0; color: #1a3d7c; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; font-size:13px; font-weight:700;">
+                  📬 Conexión con Correo Entrante (webmail.pjn.gov.ar - Zimbra)
+                </h4>
+                <small class="hint">El sistema ingresa a tu bandeja de entrada, descarga los PDFs de las audiencias recibidas y los agenda en el calendario automáticamente.</small>
+              </div>
+
+              <div class="form-group">
+                <label>Usuario Webmail PJN</label>
+                <input type="text" id="cfgPjnUser" class="form-control" placeholder="smorello o smorello@pjn.gov.ar">
+              </div>
+
+              <div class="form-group">
+                <label>Contraseña Webmail PJN</label>
+                <input type="password" id="cfgPjnPass" class="form-control" placeholder="Contraseña de webmail.pjn.gov.ar">
+              </div>
+
+              <div class="form-group">
+                <label>Búsqueda Automática Periódica</label>
+                <select id="cfgPjnAutoSync" class="form-control">
+                  <option value="1">✅ Activada (cada 30 min de Lun a Vie)</option>
+                  <option value="0">⏸️ Solo manual</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="display:flex; align-items:flex-end;">
+                <button type="button" class="btn btn-indigo" id="btnTestPjnConnection" style="width:100%; height:34px; font-size:12px;">
+                  🔄 Probar y Sincronizar Ahora
+                </button>
+              </div>
+
+              <div class="form-group full-width">
+                <h4 style="margin: 18px 0 4px 0; color: #1a3d7c; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; font-size:13px; font-weight:700;">
+                  📤 Servidor de Correo Saliente (SMTP - Para enviar la agenda a las 7 AM)
                 </h4>
               </div>
 
