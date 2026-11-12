@@ -351,18 +351,16 @@
 
                 <div class="form-group">
                   <label>Usuario del Webmail PJN</label>
-                  <input type="text" id="cfgPjnUser" class="form-control" placeholder="smorello o smorello@pjn.gov.ar">
+                  <input type="text" id="cfgPjnUser" class="form-control" placeholder="jfcorrientes2.secpenal@pjn.gov.ar" value="jfcorrientes2.secpenal@pjn.gov.ar">
                 </div>
 
                 <div class="form-group">
-                  <label>Contraseña del Webmail PJN</label>
-                  <input type="password" id="cfgPjnPass" class="form-control" placeholder="Contraseña de webmail.pjn.gov.ar">
+                  <label>Contraseña de Aplicación PJN (Zimbra)</label>
+                  <input type="password" id="cfgPjnPass" class="form-control" placeholder="Código de acceso (Ej: ACBVLDDFRSLDQVNF)">
+                  <small style="font-size:11px; color:#64748b; display:block; margin-top:2px;">Código generado en Zimbra (Preferencias > Cuentas). Conecta directo las 24 hs sin pedir token de 30 segundos.</small>
                 </div>
 
-                <div class="form-group">
-                  <label>Clave 2FA (Google Authenticator)</label>
-                  <input type="text" id="cfgPjn2faSecret" class="form-control" placeholder="Ej: DAOISZDDWRSSKSTU" value="DAOISZDDWRSSKSTU">
-                </div>
+                <input type="hidden" id="cfgPjn2faSecret" value="">
 
                 <div class="form-group">
                   <label>Escaneo Automático de Nuevas Cédulas</label>

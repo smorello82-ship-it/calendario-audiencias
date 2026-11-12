@@ -78,7 +78,7 @@ def init_db():
         INSERT INTO configuracion (
             id, smtp_server, smtp_port, smtp_user, smtp_pass, remitente,
             destinatarios, hora_envio, activo, asunto, pjn_user, pjn_pass, pjn_2fa_secret, pjn_auto_sync, pjn_last_sync
-        ) VALUES (1, 'smtp.gmail.com', 587, '', '', '', 'jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar', '07:00', 1, '⚖️ Audiencias pendientes - Sistema Acusatorio', 'jfcorrientes2.secpenal@pjn.gov.ar', '', 'DAOISZDDWRSSKSTU', 1, '')
+        ) VALUES (1, 'smtp.gmail.com', 587, '', '', '', 'jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar', '07:00', 1, '⚖️ Audiencias pendientes - Sistema Acusatorio', 'jfcorrientes2.secpenal@pjn.gov.ar', 'ACBVLDDFRSLDQVNF', '', 1, '')
         """)
     
     conn.commit()
