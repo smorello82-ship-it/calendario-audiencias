@@ -523,14 +523,16 @@ async function openConfigModal() {
       // Campos PJN
       const elPjnUser = document.getElementById('cfgPjnUser');
       const elPjnPass = document.getElementById('cfgPjnPass');
+      const elPjn2fa = document.getElementById('cfgPjn2faSecret');
       const elPjnAuto = document.getElementById('cfgPjnAutoSync');
-      if (elPjnUser) elPjnUser.value = c.pjn_user || '';
+      if (elPjnUser) elPjnUser.value = c.pjn_user || 'jfcorrientes2.secpenal@pjn.gov.ar';
       if (elPjnPass) {
         elPjnPass.value = '';
         if (c.has_pjn_pass) {
           elPjnPass.placeholder = '•••••••• (Contraseña guardada - Dejar vacío para no cambiar)';
         }
       }
+      if (elPjn2fa) elPjn2fa.value = c.pjn_2fa_secret || 'DAOISZDDWRSSKSTU';
       if (elPjnAuto) elPjnAuto.value = c.pjn_auto_sync !== undefined ? c.pjn_auto_sync : 1;
     }
   } catch (err) {
@@ -556,6 +558,7 @@ async function handleSaveConfig(e) {
     smtp_pass: document.getElementById('cfgSmtpPass').value,
     pjn_user: document.getElementById('cfgPjnUser') ? document.getElementById('cfgPjnUser').value : '',
     pjn_pass: document.getElementById('cfgPjnPass') ? document.getElementById('cfgPjnPass').value : '',
+    pjn_2fa_secret: document.getElementById('cfgPjn2faSecret') ? document.getElementById('cfgPjn2faSecret').value : '',
     pjn_auto_sync: document.getElementById('cfgPjnAutoSync') ? parseInt(document.getElementById('cfgPjnAutoSync').value) : 1
   };
 
@@ -613,6 +616,7 @@ async function handleSyncPjn() {
 async function handleSyncPjnFromModal() {
   const pjnUser = document.getElementById('cfgPjnUser').value;
   const pjnPass = document.getElementById('cfgPjnPass').value;
+  const pjn2fa = document.getElementById('cfgPjn2faSecret') ? document.getElementById('cfgPjn2faSecret').value : '';
 
   if (!pjnUser) {
     showToast('Por favor completá tu usuario del Webmail PJN', 'error');
@@ -625,7 +629,7 @@ async function handleSyncPjnFromModal() {
     const res = await fetch('/api/pjn-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pjn_user: pjnUser, pjn_pass: pjnPass })
+      body: JSON.stringify({ pjn_user: pjnUser, pjn_pass: pjnPass, pjn_2fa_secret: pjn2fa })
     });
     const data = await res.json();
 

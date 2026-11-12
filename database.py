@@ -52,6 +52,7 @@ def init_db():
         asunto TEXT,
         pjn_user TEXT,
         pjn_pass TEXT,
+        pjn_2fa_secret TEXT,
         pjn_auto_sync INTEGER DEFAULT 1,
         pjn_last_sync TEXT
     )
@@ -61,6 +62,7 @@ def init_db():
     for col_name, col_type in [
         ("pjn_user", "TEXT"),
         ("pjn_pass", "TEXT"),
+        ("pjn_2fa_secret", "TEXT"),
         ("pjn_auto_sync", "INTEGER DEFAULT 1"),
         ("pjn_last_sync", "TEXT")
     ]:
@@ -75,8 +77,8 @@ def init_db():
         cursor.execute("""
         INSERT INTO configuracion (
             id, smtp_server, smtp_port, smtp_user, smtp_pass, remitente,
-            destinatarios, hora_envio, activo, asunto, pjn_user, pjn_pass, pjn_auto_sync, pjn_last_sync
-        ) VALUES (1, 'smtp.gmail.com', 587, '', '', '', 'jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar', '07:00', 1, '⚖️ Audiencias pendientes - Sistema Acusatorio', '', '', 1, '')
+            destinatarios, hora_envio, activo, asunto, pjn_user, pjn_pass, pjn_2fa_secret, pjn_auto_sync, pjn_last_sync
+        ) VALUES (1, 'smtp.gmail.com', 587, '', '', '', 'jfcorrientes2@pjn.gov.ar, jfcorrientes2.secpenal@pjn.gov.ar', '07:00', 1, '⚖️ Audiencias pendientes - Sistema Acusatorio', 'jfcorrientes2.secpenal@pjn.gov.ar', '', 'DAOISZDDWRSSKSTU', 1, '')
         """)
     
     conn.commit()
@@ -361,7 +363,7 @@ def save_config(cfg):
     UPDATE configuracion SET
         smtp_server = ?, smtp_port = ?, smtp_user = ?, smtp_pass = ?,
         remitente = ?, destinatarios = ?, hora_envio = ?, activo = ?, asunto = ?,
-        pjn_user = ?, pjn_pass = ?, pjn_auto_sync = ?
+        pjn_user = ?, pjn_pass = ?, pjn_2fa_secret = ?, pjn_auto_sync = ?
     WHERE id = 1
     """, (
         cfg.get("smtp_server", "smtp.gmail.com").strip(),
@@ -375,6 +377,7 @@ def save_config(cfg):
         cfg.get("asunto", "⚖️ Audiencias pendientes - Sistema Acusatorio").strip(),
         cfg.get("pjn_user", "").strip(),
         cfg.get("pjn_pass", "").strip(),
+        cfg.get("pjn_2fa_secret", "").strip(),
         int(cfg.get("pjn_auto_sync", 1))
     ))
     conn.commit()

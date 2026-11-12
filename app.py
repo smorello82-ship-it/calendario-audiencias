@@ -173,6 +173,8 @@ def save_config_endpoint():
         data["smtp_pass"] = old_cfg.get("smtp_pass")
     if not data.get("pjn_pass") and old_cfg.get("pjn_pass"):
         data["pjn_pass"] = old_cfg.get("pjn_pass")
+    if not data.get("pjn_2fa_secret") and old_cfg.get("pjn_2fa_secret"):
+        data["pjn_2fa_secret"] = old_cfg.get("pjn_2fa_secret")
         
     database.save_config(data)
     # Actualizar scheduler
@@ -183,12 +185,12 @@ def save_config_endpoint():
 def trigger_pjn_sync():
     """Endpoint para sincronizar correos del Webmail PJN en vivo"""
     data = request.json or {}
-    # Permitir pasar credenciales temporales o usar las guardadas en la BD
     custom_user = data.get("pjn_user")
     custom_pass = data.get("pjn_pass")
+    custom_2fa = data.get("pjn_2fa_secret")
     
     if custom_user and custom_pass:
-        client = pjn_mail_reader.PJNWebmailClient(custom_user, custom_pass)
+        client = pjn_mail_reader.PJNWebmailClient(custom_user, custom_pass, totp_secret=custom_2fa)
         res = client.search_and_sync_hearings()
         if res.get("success"):
             database.update_last_pjn_sync()
