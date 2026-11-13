@@ -138,12 +138,9 @@ class PJNWebmailClient:
                     # Extraer datos con pdfplumber
                     extracted = extractor.extract_hearing_from_pdf(dest_path)
 
-                    # Es audiencia válida si tiene carpeta o fecha con tipo de audiencia
+                    # Es audiencia válida solo si tiene fecha, hora y datos reales de audiencia (evita oficios comunes)
                     has_carpeta = bool(extracted.get("carpeta"))
-                    has_fecha = bool(extracted.get("fecha"))
-                    has_aud = bool(extracted.get("audiencia_requerida"))
-
-                    if has_carpeta or (has_fecha and has_aud):
+                    if extractor.is_valid_hearing(extracted):
                         # Evitar duplicados
                         duplicada = any(
                             (
@@ -274,10 +271,8 @@ class PJNWebmailClient:
                             f.write(content)
 
                         extracted = extractor.extract_hearing_from_pdf(dest_path)
-                        has_carpeta = bool(extracted.get("carpeta"))
-                        has_fecha = bool(extracted.get("fecha"))
 
-                        if has_carpeta or has_fecha:
+                        if extractor.is_valid_hearing(extracted):
                             duplicada = any(
                                 (a.get("carpeta") or "").strip().lower() == (extracted.get("carpeta") or "").strip().lower() and
                                 (a.get("fecha") or "").strip() == (extracted.get("fecha") or "").strip()

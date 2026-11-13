@@ -156,12 +156,12 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
         zoom_link = re.sub(r'[\s"\'\)]+$', '', zoom_link)
 
     # Buscar ID de reunión
-    m_zid = re.search(r'ID\s+de\s+reuni[oó]n:\s*([\d\s]+)', full_text, re.IGNORECASE)
+    m_zid = re.search(r'(?:ID\s+de\s+reuni[oó]n|ID\.?\s+de\s+reuni[oó]n|ID)\s*:\s*([\d\s]+)', full_text, re.IGNORECASE)
     if m_zid:
         zoom_id = re.sub(r'\s+', ' ', m_zid.group(1).strip())
 
-    # Buscar Código de acceso / Clave
-    m_zpass = re.search(r'(?:C[oó]digo\s+de\s+acceso|clave):\s*([a-zA-Z0-9]+)', full_text, re.IGNORECASE)
+    # Buscar Código de acceso / Clave / Contraseña
+    m_zpass = re.search(r'(?:C[oó]digo\s+de\s+acceso|clave(?:\s+de\s+acceso)?|contrase[ñn]a)\s*:\s*([a-zA-Z0-9]+)', full_text, re.IGNORECASE)
     if m_zpass:
         zoom_pass = m_zpass.group(1).strip()
 
@@ -222,8 +222,22 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
                 clean_lugar = re.sub(r'[\.,;\s]+$', '', clean_lugar)
                 det_parts.append(f"{clean_name} ({clean_lugar})")
             detenidos = "; ".join(det_parts)
-        elif re.search(r'Detenido:\s*SI', full_text, re.IGNORECASE):
-            detenidos = "SÍ"
+        else:
+            # Formato narrativo OFIJU: "• NOMBRE APELLIDO, DNI ... DETENIDO/A ... alojado/a (actualmente) en ..."
+            oj_det_matches = re.findall(
+                r'(?:^|\n)[•\-\*]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{3,60}?),\s*DNI\s+N[°º\.]*[\s\S]{0,80}?\bDETENID[OA]\b[\s\S]{0,80}?alojad[oa](?:\s+actualmente)?\s+en\s+(?:el\s+|la\s+)?([^\.\(]+)',
+                full_text,
+                re.IGNORECASE
+            )
+            if oj_det_matches:
+                det_parts = []
+                for name, lugar in oj_det_matches:
+                    clean_name = re.sub(r'\s+', ' ', name).strip()
+                    clean_lugar = re.sub(r'\s+', ' ', lugar).strip(" .;,")
+                    det_parts.append(f"{clean_name} ({clean_lugar})")
+                detenidos = "; ".join(det_parts)
+            elif re.search(r'Detenido:\s*SI|\bDETENID[OA]\b', full_text, re.IGNORECASE):
+                detenidos = "SÍ"
 
     # 8. EMAILS
     emails = []
@@ -256,3 +270,18 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
         "email": email_res,
         "archivo_pdf": os.path.basename(pdf_path)
     }
+
+
+def is_valid_hearing(extracted: dict) -> bool:
+    """
+    Determina si los datos extraídos corresponden realmente a una notificación
+    o citación de audiencia (y no a un oficio común, resolución o agenda).
+    """
+    has_fecha = bool((extracted.get("fecha") or "").strip())
+    has_hora = bool((extracted.get("hora") or "").strip())
+    has_carpeta = bool((extracted.get("carpeta") or "").strip())
+    has_aud = bool((extracted.get("audiencia_requerida") or "").strip())
+    has_zoom = bool((extracted.get("zoom_link") or "").strip() or (extracted.get("zoom_id") or "").strip())
+
+    # Toda audiencia fijada tiene fecha y hora, más al menos carpeta/audiencia/zoom
+    return has_fecha and has_hora and (has_aud or has_zoom) and (has_carpeta or has_aud)
