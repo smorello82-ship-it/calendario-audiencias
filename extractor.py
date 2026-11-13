@@ -53,24 +53,37 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
         sede = "Corrientes"
 
     # 2. CARPETA JUDICIAL
-    # Busca "CARPETA JUDICIAL N° 7456/2026/4", "CARPETA JUDICIAL N°: 8705/2026/3" o número antes de CARPETA
-    m_carpeta = re.search(r'CARPETA\s+JUDICIAL\s+N[°º\.]*:?\s*([\d\/\-]+)', full_text, re.IGNORECASE)
+    # Busca "CARPETA JUDICIAL N° 7456/2026/4", "CARPETA JUDICIAL N°: 8705/2026/3", "FCT 8648/2026/2" o número antes de CARPETA
+    m_carpeta = re.search(r'(?:CARPETA\s+JUDICIAL\s+N[°º\.]*:?|FCT\s+)([0-9]{3,8}\/[0-9]{4}(?:\/[0-9]+)?)', full_text, re.IGNORECASE)
+    if not m_carpeta:
+        m_carpeta = re.search(r'CARPETA\s+JUDICIAL\s+N[°º\.]*:?\s*([\d\/\-]+)', full_text, re.IGNORECASE)
     if not m_carpeta:
         m_carpeta = re.search(r'([\d]{3,8}\/[\d]{4}(?:\/[\d]+)?)\s*.*?CARPETA\s+JUDICIAL', full_text, re.IGNORECASE)
     carpeta = m_carpeta.group(1).strip() if m_carpeta else ""
 
     # 3. FECHA Y HORA
-    # Busca "Miercoles 04 de noviembre de 2026 a las 08:00 horas" o "el LUNES 02 DE NOVIEMBRE DE 2026, a las 11:00 horas"
+    # Busca "el día miércoles 4 de noviembre del 2026, a las 10:00 horas" o "Miercoles 04 de noviembre de 2026 a las 08:00 horas"
     fecha_str = ""
     dia_str = ""
     hora_str = ""
     fecha_iso = ""
 
+    # Primero buscar específicamente el bloque de fecha fijada si existe ("Lugar, fecha y hora de audiencia fijada : ...")
+    m_fijada = re.search(r'(?:Lugar,\s*)?fecha\s+y\s+hora\s+de\s+audiencia\s+fijada\s*:\s*([^\n]+)', full_text, re.IGNORECASE)
+    texto_fecha_busqueda = m_fijada.group(1) if m_fijada else full_text
+
     m_fh = re.search(
-        r'(?:(?:el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+)?(\d{1,2})\s+de\s+([a-zA-Záéíóú]+)\s+de\s+(\d{4})\s*,?\s*a\s+las\s+(\d{1,2}:\d{2})',
-        full_text,
+        r'(?:(?:el\s+d[ií]a\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*,?\s*)?(\d{1,2})\s+de\s+([a-zA-Záéíóú]+)(?:\s+del?)?\s+(\d{4})\s*,?\s*a\s+las\s+(\d{1,2}:\d{2})',
+        texto_fecha_busqueda,
         re.IGNORECASE
     )
+    if not m_fh and m_fijada:
+        m_fh = re.search(
+            r'(?:(?:el\s+d[ií]a\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*,?\s*)?(\d{1,2})\s+de\s+([a-zA-Záéíóú]+)(?:\s+del?)?\s+(\d{4})\s*,?\s*a\s+las\s+(\d{1,2}:\d{2})',
+            full_text,
+            re.IGNORECASE
+        )
+
     if m_fh:
         dia_num = int(m_fh.group(2))
         mes_num = MESES.get(m_fh.group(3).lower(), 1)
@@ -99,7 +112,7 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
     # 4. AUDIENCIA REQUERIDA
     # Busca el bloque correspondiente a "Audiencia requerida"
     m_aud = re.search(
-        r'(?:\d+\.\s*)?Audiencia\s+requerida:\s*(.*?)(?=\n(?:\d+\.|\bTipo de delito:|\bInvestigados:|\bPersona detenida))',
+        r'(?:\d+\.\s*)?Audiencia\s+requerida\s*:\s*(.*?)(?=\n(?:\d+\.|\bTipo de delito:|\bInvestigados:|\bPersona detenida|\bLugar,\s*fecha))',
         full_text,
         re.IGNORECASE | re.DOTALL
     )
@@ -115,7 +128,7 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
 
     # 5. TIPO DE DELITO
     m_del = re.search(
-        r'(?:\d+\.\s*)?Tipo\s+de\s+delito:\s*(.*?)(?=\n(?:\d+\.|\bInvestigados:|\bPersona detenida|\bInvestigado/a:))',
+        r'(?:\d+\.\s*)?(?:Tipo\s+de\s+delito|Delito\s+investigado)\s*:\s*(.*?)(?=\n(?:\d+\.|\bInvestigados?:|\bPersona detenida|\bInvestigado/a:|\bFecha del hecho:|\bSustancia))',
         full_text,
         re.IGNORECASE | re.DOTALL
     )
@@ -152,12 +165,14 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
     if m_zpass:
         zoom_pass = m_zpass.group(1).strip()
 
+    # Si dice expresamente PRESENCIAL en el bloque de audiencia fijada o modalidad asignada:
+    es_presencial_explicito = bool(re.search(r'audiencia\s+(?:fijada|asignada|requerida)[^\n]*PRESENCIAL|\(\s*PRESENCIAL\s*\)', full_text, re.IGNORECASE))
     es_virtual = ("VIRTUAL" in full_text.upper() or
                   "MANERA REMOTA" in full_text.upper() or
-                  "ZOOM" in full_text.upper() or
-                  bool(zoom_link))
+                  bool(zoom_link) or
+                  (bool(zoom_id) and bool(zoom_pass)))
 
-    if es_virtual:
+    if es_virtual and not (es_presencial_explicito and not zoom_link and not zoom_id):
         modalidad_base = "VIRTUAL"
         if zoom_id and zoom_pass:
             modalidad = f"VIRTUAL (Zoom - ID: {zoom_id} / clave: {zoom_pass})"
@@ -167,10 +182,29 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
             modalidad = "VIRTUAL"
     else:
         modalidad = "PRESENCIAL"
+        modalidad_base = "PRESENCIAL"
 
     # 7. DETENIDOS
     detenidos = "NO HAY PERSONAS DETENIDAS"
-    if re.search(r'NO\s+HAY\s+PERSONAS\s+DETENIDAS', full_text, re.IGNORECASE):
+    # Formato Oficina Judicial Garantías:
+    m_det_oj = re.search(
+        r'Persona\s+detenida\s*-\s*Fecha\s+y\s+hora\s+de\s+detenci[oó]n\s*-\s*lugar\s+de\s+alojamiento\s*:\s*(.*?)(?=\n\s*(?:\d+\.|\bJuez\b|\bFiscal[ií]a\b|\bDefensa\b|\bNotif[ií]quese\b))',
+        full_text,
+        re.IGNORECASE | re.DOTALL
+    )
+    if m_det_oj:
+        det_val = " ".join(m_det_oj.group(1).split()).strip()
+        if re.search(r'no\s+se\s+hallan|no\s+hay', det_val, re.IGNORECASE):
+            detenidos = "NO HAY PERSONAS DETENIDAS"
+        else:
+            # Buscar nombre del investigado para contexto si está disponible
+            m_inv = re.search(r'(?:Investigado/a|IMPUTADO)\s*:\s*([^,\n]+)', full_text, re.IGNORECASE)
+            imputado_nom = m_inv.group(1).strip() if m_inv else ""
+            if imputado_nom and imputado_nom.lower() not in det_val.lower():
+                detenidos = f"{imputado_nom}: {det_val}"
+            else:
+                detenidos = det_val
+    elif re.search(r'NO\s+HAY\s+PERSONAS\s+DETENIDAS', full_text, re.IGNORECASE):
         detenidos = "NO HAY PERSONAS DETENIDAS"
     else:
         # Extraer imputados/investigados que tengan Detenido: SI
