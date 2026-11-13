@@ -4,6 +4,7 @@ import ssl
 import json
 import os
 import re
+import time
 import zipfile
 import io
 import base64
@@ -79,16 +80,20 @@ class PJNWebmailClient:
 
         os.makedirs("uploads", exist_ok=True)
         existentes = database.get_audiencias(filtro="todas")
+        existentes_pdfs = {(a.get("archivo_pdf") or "").strip() for a in existentes if a.get("archivo_pdf")}
         
         nuevas_cargadas = 0
         ya_existentes = 0
         detalles = []
         archivos_procesados = set()
+        start_time = time.time()
 
         # Revisar carpetas de adjuntos: hoy, última semana y último mes
         subcarpetas = ["today", "last-week", "last-month"]
         
         for sub in subcarpetas:
+            if time.time() - start_time > 20:
+                break
             url_folder = f"{self.base_url}/dav/{self.full_username}/attachments/by-type/pdf/{sub}/"
             req_folder = urllib.request.Request(
                 url_folder, 
@@ -121,17 +126,27 @@ class PJNWebmailClient:
                     continue
                 archivos_procesados.add(clean_filename)
 
+                if clean_filename in existentes_pdfs:
+                    ya_existentes += 1
+                    continue
+
+                dest_path = os.path.join("uploads", clean_filename)
+                if os.path.exists(dest_path):
+                    continue
+
+                if time.time() - start_time > 20:
+                    break
+
                 # Descargar el archivo PDF
                 file_url = f"{self.base_url}{href}"
                 try:
                     req_file = urllib.request.Request(file_url, headers=headers)
-                    with urllib.request.urlopen(req_file, context=self.ssl_context, timeout=15) as r_file:
+                    with urllib.request.urlopen(req_file, context=self.ssl_context, timeout=8) as r_file:
                         content_bytes = r_file.read()
                     
                     if not content_bytes.startswith(b'%PDF-'):
                         continue
 
-                    dest_path = os.path.join("uploads", clean_filename)
                     with open(dest_path, "wb") as f_out:
                         f_out.write(content_bytes)
 

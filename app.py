@@ -184,22 +184,25 @@ def save_config_endpoint():
 @app.route('/api/pjn-sync', methods=['POST'])
 def trigger_pjn_sync():
     """Endpoint para sincronizar correos del Webmail PJN en vivo"""
-    data = request.json or {}
-    custom_user = data.get("pjn_user")
-    custom_pass = data.get("pjn_pass")
-    custom_2fa = data.get("pjn_2fa_secret")
-    
-    if custom_user and custom_pass:
-        client = pjn_mail_reader.PJNWebmailClient(custom_user, custom_pass, totp_secret=custom_2fa)
-        res = client.search_and_sync_hearings()
-        if res.get("success"):
-            database.update_last_pjn_sync()
-        return jsonify(res)
-    else:
-        res = pjn_mail_reader.sync_pjn_mail()
-        if res.get("success"):
-            database.update_last_pjn_sync()
-        return jsonify(res)
+    try:
+        data = request.json or {}
+        custom_user = data.get("pjn_user")
+        custom_pass = data.get("pjn_pass")
+        custom_2fa = data.get("pjn_2fa_secret")
+        
+        if custom_user and custom_pass:
+            client = pjn_mail_reader.PJNWebmailClient(custom_user, custom_pass, totp_secret=custom_2fa)
+            res = client.search_and_sync_hearings()
+            if res.get("success"):
+                database.update_last_pjn_sync()
+            return jsonify(res)
+        else:
+            res = pjn_mail_reader.sync_pjn_mail()
+            if res.get("success"):
+                database.update_last_pjn_sync()
+            return jsonify(res)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 200
 
 @app.route('/api/enviar-email', methods=['POST'])
 def trigger_email():
