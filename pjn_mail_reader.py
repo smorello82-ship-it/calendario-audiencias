@@ -5,6 +5,9 @@ import json
 import os
 import re
 import time
+import hmac
+import hashlib
+import struct
 import zipfile
 import io
 import base64
@@ -36,26 +39,50 @@ class PJNWebmailClient:
         user_pass = f"{self.full_username}:{self.password}".encode('utf-8')
         self.auth_header = f"Basic {base64.b64encode(user_pass).decode('ascii')}"
 
+    @staticmethod
+    def _generate_totp(secret: str) -> str:
+        """Genera el código TOTP de 6 dígitos a partir del secreto Base32."""
+        clean_secret = re.sub(r'\s+', '', secret).upper()
+        padding = '=' * ((8 - len(clean_secret) % 8) % 8)
+        key = base64.b32decode(clean_secret + padding, casefold=True)
+        counter = int(time.time() // 30)
+        msg = struct.pack('>Q', counter)
+        digest = hmac.new(key, msg, hashlib.sha1).digest()
+        offset = digest[-1] & 0x0F
+        code = (struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7FFFFFFF) % 1000000
+        return f"{code:06d}"
+
     def search_and_sync_hearings(self, max_emails=30):
         """
         Sincroniza audiencias descargando cédulas en PDF desde el Webmail PJN.
-        Intenta primero por WebDAV (/dav/) con Contraseña de Aplicación (más rápido y seguro),
-        y si no, por la API SOAP/REST de Zimbra.
+        Si hay secreto 2FA (TOTP), prioriza SOAP/REST porque descarga el 100% de los adjuntos
+        (incluyendo nombres con espacios). Si falla (ej. si la clave guardada es de aplicación),
+        usa WebDAV (/dav/) como respaldo.
         """
-        # 1. Probar WebDAV
+        if self.totp_secret:
+            res_soap = self._sync_via_soap_rest(max_emails=max_emails)
+            if res_soap.get("success"):
+                return res_soap
+            res_webdav = self._sync_via_webdav()
+            if res_webdav.get("success"):
+                return res_webdav
+            return res_soap
+
+        # Sin secreto 2FA: probar WebDAV primero y luego SOAP/REST
         res_webdav = self._sync_via_webdav()
         if res_webdav.get("success"):
             return res_webdav
-            
-        # Si WebDAV falló por credenciales incorrectas, devolver el error claro
+
+        res_soap = self._sync_via_soap_rest(max_emails=max_emails)
+        if res_soap.get("success"):
+            return res_soap
+
         if res_webdav.get("auth_failed"):
             return {
                 "success": False,
                 "error": "Contraseña de aplicación o usuario incorrecto en webmail.pjn.gov.ar. Verificá los datos ingresados."
             }
-            
-        # 2. Fallback: Probar SOAP/REST
-        return self._sync_via_soap_rest(max_emails=max_emails)
+        return res_soap
 
     def _sync_via_webdav(self):
         """Descarga adjuntos PDF y ZIP directamente desde los buzones virtuales WebDAV de Zimbra"""
@@ -208,6 +235,8 @@ class PJNWebmailClient:
         auth_token = None
         last_error = ""
 
+        totp_tag = f"\n      <twoFactorCode>{self._generate_totp(self.totp_secret)}</twoFactorCode>" if self.totp_secret else ""
+
         for u in usernames_to_try:
             soap_xml = f"""<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
@@ -215,7 +244,7 @@ class PJNWebmailClient:
   <soap:Body>
     <AuthRequest xmlns="urn:zimbraAccount">
       <account by="name">{u}</account>
-      <password>{self._escape_xml(self.password)}</password>
+      <password>{self._escape_xml(self.password)}</password>{totp_tag}
     </AuthRequest>
   </soap:Body>
 </soap:Envelope>"""
@@ -259,21 +288,33 @@ class PJNWebmailClient:
         detalles = []
         os.makedirs("uploads", exist_ok=True)
         existentes = database.get_audiencias(filtro="todas")
+        existentes_pdfs = {(a.get("archivo_pdf") or "").strip() for a in existentes if a.get("archivo_pdf")}
+        start_time = time.time()
 
         for m in messages:
+            if time.time() - start_time > 20:
+                break
             msg_id = m.get("id")
             subject = m.get("su") or "Sin Asunto"
             parts = m.get("mp", [])
             pdf_parts = self._find_pdf_parts(parts)
 
             for part_info in pdf_parts:
+                if time.time() - start_time > 20:
+                    break
                 part_id = part_info.get("part", "2")
                 part_filename = part_info.get("name") or f"audiencia_{msg_id}.pdf"
                 clean_filename = "".join(c for c in part_filename if c.isalnum() or c in (' ', '.', '_', '-')).strip()
                 if not clean_filename.lower().endswith('.pdf'):
                     clean_filename += '.pdf'
 
+                if clean_filename in existentes_pdfs:
+                    ya_existentes += 1
+                    continue
+
                 dest_path = os.path.join("uploads", clean_filename)
+                if os.path.exists(dest_path):
+                    continue
                 url_part = f"{self.base_url}/home/~/?id={msg_id}&part={part_id}"
                 
                 try:
