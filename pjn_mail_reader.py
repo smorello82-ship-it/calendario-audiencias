@@ -235,16 +235,21 @@ class PJNWebmailClient:
         auth_token = None
         last_error = ""
 
-        totp_tag = f"\n      <twoFactorCode>{self._generate_totp(self.totp_secret)}</twoFactorCode>" if self.totp_secret else ""
+        device_id = "calendario-audiencias-render"
+        is_trusted_token = bool(self.totp_secret and self.totp_secret.startswith("0_"))
 
         for u in usernames_to_try:
+            trusted_tags = ""
+            if is_trusted_token:
+                trusted_tags = f"\n      <trustedToken>{self._escape_xml(self.totp_secret)}</trustedToken>\n      <deviceId>{device_id}</deviceId>"
+
             soap_xml = f"""<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
   <soap:Header><context xmlns="urn:zimbra"/></soap:Header>
   <soap:Body>
-    <AuthRequest xmlns="urn:zimbraAccount">
+    <AuthRequest xmlns="urn:zimbraAccount" persistAuthTokenCookie="1">
       <account by="name">{u}</account>
-      <password>{self._escape_xml(self.password)}</password>{totp_tag}
+      <password>{self._escape_xml(self.password)}</password>{trusted_tags}
     </AuthRequest>
   </soap:Body>
 </soap:Envelope>"""
@@ -258,9 +263,51 @@ class PJNWebmailClient:
                 with urllib.request.urlopen(req, context=self.ssl_context, timeout=12) as resp:
                     xml_resp = resp.read().decode('utf-8')
                     m_token = re.search(r'<authToken>([^<]+)</authToken>', xml_resp)
-                    if m_token:
+                    needs_2fa = '<twoFactorAuthRequired>true</twoFactorAuthRequired>' in xml_resp
+                    if m_token and not needs_2fa:
                         auth_token = m_token.group(1).strip()
                         break
+                    if m_token and needs_2fa and self.totp_secret and not is_trusted_token:
+                        tfa_token = m_token.group(1).strip()
+                        if re.fullmatch(r'\d{6}', self.totp_secret.strip()):
+                            totp_code = self.totp_secret.strip()
+                        else:
+                            totp_code = self._generate_totp(self.totp_secret)
+                        soap_2fa = f"""<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+  <soap:Header>
+    <context xmlns="urn:zimbra">
+      <authToken>{tfa_token}</authToken>
+    </context>
+  </soap:Header>
+  <soap:Body>
+    <AuthRequest xmlns="urn:zimbraAccount" persistAuthTokenCookie="1" deviceTrusted="1">
+      <account by="name">{u}</account>
+      <password>{self._escape_xml(self.password)}</password>
+      <twoFactorCode>{totp_code}</twoFactorCode>
+      <deviceId>{device_id}</deviceId>
+    </AuthRequest>
+  </soap:Body>
+</soap:Envelope>"""
+                        req2 = urllib.request.Request(
+                            f"{self.base_url}/service/soap",
+                            data=soap_2fa.encode('utf-8'),
+                            headers={"Content-Type": "application/soap+xml; charset=utf-8", "User-Agent": "Mozilla/5.0"}
+                        )
+                        with urllib.request.urlopen(req2, context=self.ssl_context, timeout=12) as resp2:
+                            xml_resp2 = resp2.read().decode('utf-8')
+                            m_token2 = re.search(r'<authToken>([^<]+)</authToken>', xml_resp2)
+                            if m_token2:
+                                auth_token = m_token2.group(1).strip()
+                                m_trusted = re.search(r'<trustedToken>([^<]+)</trustedToken>', xml_resp2)
+                                if m_trusted:
+                                    try:
+                                        cfg = database.get_config()
+                                        cfg["pjn_2fa_secret"] = m_trusted.group(1).strip()
+                                        database.save_config(cfg)
+                                    except Exception:
+                                        pass
+                                break
             except Exception as e:
                 last_error = str(e)
 
@@ -272,14 +319,28 @@ class PJNWebmailClient:
             "User-Agent": "Mozilla/5.0"
         }
 
-        # Búsqueda REST de mensajes
+        # Búsqueda SOAP JSON de mensajes recientes con adjuntos en Inbox
         messages = []
         try:
-            url_search = f"{self.base_url}/home/~/?query=has:attachment&types=message&limit={max_emails}&fmt=json"
-            req_s = urllib.request.Request(url_search, headers=headers)
+            soap_search = {
+                "Header": {"context": {"_jsns": "urn:zimbra", "authToken": {"_content": auth_token}}},
+                "Body": {
+                    "SearchRequest": {
+                        "_jsns": "urn:zimbraMail",
+                        "types": "message",
+                        "limit": max_emails,
+                        "query": "in:inbox has:attachment"
+                    }
+                }
+            }
+            req_s = urllib.request.Request(
+                f"{self.base_url}/service/soap",
+                data=json.dumps(soap_search).encode('utf-8'),
+                headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+            )
             with urllib.request.urlopen(req_s, context=self.ssl_context, timeout=15) as r:
                 data = json.loads(r.read().decode('utf-8'))
-                messages = data.get("m", [])
+                messages = data.get("Body", {}).get("SearchResponse", {}).get("m", [])
         except Exception as e:
             return {"success": False, "error": f"Error leyendo correos de Zimbra: {str(e)}"}
 
@@ -296,7 +357,26 @@ class PJNWebmailClient:
                 break
             msg_id = m.get("id")
             subject = m.get("su") or "Sin Asunto"
+
+            # Obtener partes MIME reales mediante GetMsgRequest
             parts = m.get("mp", [])
+            if not parts:
+                try:
+                    soap_get = {
+                        "Header": {"context": {"_jsns": "urn:zimbra", "authToken": {"_content": auth_token}}},
+                        "Body": {"GetMsgRequest": {"_jsns": "urn:zimbraMail", "m": {"id": msg_id}}}
+                    }
+                    req_g = urllib.request.Request(
+                        f"{self.base_url}/service/soap",
+                        data=json.dumps(soap_get).encode('utf-8'),
+                        headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+                    )
+                    with urllib.request.urlopen(req_g, context=self.ssl_context, timeout=10) as rg:
+                        dg = json.loads(rg.read().decode('utf-8'))
+                        parts = dg.get("Body", {}).get("GetMsgResponse", {}).get("m", [{}])[0].get("mp", [])
+                except Exception:
+                    parts = []
+
             pdf_parts = self._find_pdf_parts(parts)
 
             for part_info in pdf_parts:
@@ -391,6 +471,7 @@ def sync_pjn_mail():
     cfg = database.get_config()
     user = cfg.get("pjn_user")
     pwd = cfg.get("pjn_pass")
+    totp_secret = cfg.get("pjn_2fa_secret")
 
     if not user or not pwd:
         return {
@@ -398,5 +479,5 @@ def sync_pjn_mail():
             "error": "Por favor configurá tu usuario y contraseña de aplicación de webmail.pjn.gov.ar en Configurar Envíos."
         }
 
-    client = PJNWebmailClient(username=user, password=pwd)
+    client = PJNWebmailClient(username=user, password=pwd, totp_secret=totp_secret)
     return client.search_and_sync_hearings()

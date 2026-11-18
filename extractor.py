@@ -69,25 +69,22 @@ def extract_hearing_from_pdf(pdf_path: str) -> dict:
     fecha_iso = ""
 
     # Primero buscar específicamente el bloque de fecha fijada si existe ("Lugar, fecha y hora de audiencia fijada : ...")
-    m_fijada = re.search(r'(?:Lugar,\s*)?fecha\s+y\s+hora\s+de\s+audiencia\s+fijada\s*:\s*([^\n]+)', full_text, re.IGNORECASE)
-    texto_fecha_busqueda = m_fijada.group(1) if m_fijada else full_text
+    m_fijada = re.search(r'(?:Lugar,\s*)?fecha\s+y\s+hora\s+de\s+audiencia\s+fijada\s*:\s*([^\n]+(?:\n[^\n]+)?)', full_text, re.IGNORECASE)
+    texto_fecha_busqueda = " ".join(m_fijada.group(1).split()) if m_fijada else full_text
 
-    m_fh = re.search(
-        r'(?:(?:el\s+d[ií]a\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*,?\s*)?(\d{1,2})\s+de\s+([a-zA-Záéíóú]+)(?:\s+del?)?\s+(\d{4})\s*,?\s*a\s+las\s+(\d{1,2}:\d{2})',
-        texto_fecha_busqueda,
-        re.IGNORECASE
-    )
+    # Buscar año de referencia en el documento por si la fecha fijada omite el año (ej: "Miércoles 18 de Noviembre a las 08:00 hs")
+    m_anio_ref = re.search(r'\b(20\d{2})\b', full_text)
+    anio_default = int(m_anio_ref.group(1)) if m_anio_ref else datetime.now().year
+
+    patron_fh = r'(?:(?:el\s+d[ií]a\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*,?\s*)?(\d{1,2})\s+de\s+([a-zA-Záéíóú]+)(?:\s+del?\s+(\d{4}))?\s*,?\s*a\s+las\s+(\d{1,2}:\d{2})'
+    m_fh = re.search(patron_fh, texto_fecha_busqueda, re.IGNORECASE)
     if not m_fh and m_fijada:
-        m_fh = re.search(
-            r'(?:(?:el\s+d[ií]a\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*,?\s*)?(\d{1,2})\s+de\s+([a-zA-Záéíóú]+)(?:\s+del?)?\s+(\d{4})\s*,?\s*a\s+las\s+(\d{1,2}:\d{2})',
-            full_text,
-            re.IGNORECASE
-        )
+        m_fh = re.search(patron_fh, full_text, re.IGNORECASE)
 
     if m_fh:
         dia_num = int(m_fh.group(2))
         mes_num = MESES.get(m_fh.group(3).lower(), 1)
-        anio = int(m_fh.group(4))
+        anio = int(m_fh.group(4)) if m_fh.group(4) else anio_default
         hora_str = m_fh.group(5)
         try:
             dt = datetime(anio, mes_num, dia_num)
